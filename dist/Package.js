@@ -20,10 +20,13 @@ module.exports = class Package {
     this.package_dir = './node_modules/' + this.package_name + '/';
 
     // Get the package json file data
-    this.file_data = fs.readFileSync(this.package_dir + 'package.json');
+    this.file_data = JSON.parse(fs.readFileSync(this.package_dir + 'package.json'));
 
     // get the main paramater and generate main file path
-    this.main = this.package_dir + JSON.parse(this.file_data).main;
+    this.main = this.package_dir + this.file_data.main;
+
+    // Stores the style file
+    this.style = this.file_data.style ? this.file_data.style : '';
 
     // Get the main dir to generate all files that are needed
     this.main_dist = this.getDistFolder();
@@ -103,6 +106,13 @@ module.exports = class Package {
    */
   getMain () {
     return this.main;
+  }
+
+  /**
+   *  Return the primary style file
+   */
+  getStyle () {
+    return this.style;
   }
 
 }

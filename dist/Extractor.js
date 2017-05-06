@@ -1,6 +1,6 @@
 /**
  *  Extractor
- *  Extracts assets from node packages 
+ *  Extracts assets from node packages
  */
 
 // Grab fs for file manipulation
@@ -19,6 +19,7 @@ module.exports = class Extractor {
     // Set up the object to hold our file references
     this.package_files = {
       main: [],
+      style: [],
       vendors: {}
     };
 
@@ -65,8 +66,12 @@ module.exports = class Extractor {
       // Extract the package files
       pack.extract();
 
-      // Store the main file
+      // Store the main file (probably js)
       this.package_files.main.push(pack.getMain());
+
+      // Store the style file (probably css)
+      if(let style = pack.getStyle())
+        this.package_files.style.push(style);
 
     }
 
