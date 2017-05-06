@@ -62,7 +62,7 @@ module.exports = class Extractor {
 
       // Init the package object
       let pack = new Package(this.packages[i], this),
-          style = style = pack.getStyle();
+          style = pack.getStyle();
 
       // Extract the package files
       pack.extract();
