@@ -1,0 +1,24 @@
+{
+  "name": "package-extractor",
+  "version": "1.0.0",
+  "description": "Creates an array of node package dist files organized by file type. To be used with task managers or bundlers.",
+  "main": "dist/package-extractor.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/thefreshvince/package-extractor.git"
+  },
+  "keywords": [
+    "package",
+    "extractor",
+    "workflow"
+  ],
+  "author": "Vincent Smuda",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/thefreshvince/package-extractor/issues"
+  },
+  "homepage": "https://github.com/thefreshvince/package-extractor#readme"
+}
