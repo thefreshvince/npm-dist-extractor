@@ -1,8 +1,10 @@
 # Package Extractor
 A helpful script that organizes npm dependencies into actionable objects and arrays.
 
-## Usage
+## Installation
+`npm install package-extractor --save-dev` or `yarn add package-extractor --dev`
 
+## Usage
 First require, then run.
 
 ```js
