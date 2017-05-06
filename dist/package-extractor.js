@@ -2,108 +2,274 @@
 const fs = require('fs');
 
 // Export our function
-module.exports = function (packages = []) {
+module.exports = class Extractor {
 
-    // Set up the package dir
-    let package_files = {
-            main: [],
-            vendors: {}
-        },
-        accepted_file_types = /^(s?css|js|jpe?g|gif|png|svg|woff|ttf|eot)(_min)?$/,
-        main_files = {};
+  /**
+   *  Allow for user defined packages
+   */
+  constructor (packages = []) {
 
-    // If there are no packages set
-    if(!packages.length) {
+    // Set up the object to hold our file references
+    this.package_files = {
+      main: [],
+      vendors: {}
+    };
 
-      // Get the package json
-      let package_file = fs.readFileSync('./package.json'),
-          package_json = JSON.parse(package_file);
+    // Set up the package references
+    this.packages = packages.length
+      ? packages
+      : this.findDependencies() ;
 
-      // Check to see if the dependancies are set
-      if(package_json.dependencies)
-        packages = Object.keys(package_json.dependencies);
+  }
 
-    }
+  /**
+   *  Finds the project's dependencies
+   */
+  findDependencies () {
+
+    // Get the package json
+    let packages = [],
+        project_package_file = fs.readFileSync('./package.json'),
+        project_package_json = JSON.parse(project_package_file),
+        dependancy_param = project_package_json.dependencies
+          ? 'dependencies'
+          : 'devDependencies' ;
+
+    // Check to see if the dependancies are set
+    if(project_package_json[dependancy_param])
+      packages = Object.keys(project_package_json[dependancy_param]);
+
+    // return the found packages
+    return packages;
+
+  }
+
+  /**
+   *  Extract the dists
+   */
+  extract () {
 
     // Loop through all the packages
-    for (let i = 0, l = packages.length; i < l; i++) {
+    for (let i = 0, l = this.packages.length; i < l; i++) {
 
-            // Store the package name
-        let package_name = packages[i],
+      // Init the package object
+      let pack = new Package(this.packages[i], this);
 
-            // Set the package dir
-            package_dir = './node_modules/' + package_name + '/',
+      // Extract the package files
+      pack.extract();
 
-            // Get the package json file data
-            file_data = fs.readFileSync(package_dir + 'package.json'),
-
-            // get the main paramater and generate main file path
-            main = package_dir + JSON.parse(file_data).main;
-
-            // Get the main dir to generate all files that are needed
-            main_dist = main.replace(/[^/]+$/,''),
-
-            // Get all files in the dist
-            main_dist_files = fs.readdirSync(main_dist);
-
-        // Store the files according to filetype
-        for (let i = 0; i < main_dist_files.length; i++) {
-
-                // Check to see where the dot is!
-            let file = main_dist_files[i],
-
-                // Store the file for easy access
-                is_file = file.indexOf('.');
-
-            // If is system file
-            if(!is_file) continue;
-
-            // If is a directory, add contents to main dist files array
-            else if(main_dist_files[i].indexOf('.') < 0) {
-
-                // grab the new files
-                let new_files = fs.readdirSync(main_dist + file);
-
-                // Go through new files and add them to dist array
-                for (let j = 0, l = new_files.length; j < l; j++)
-                    new_files[j] = file + '/' + new_files[j];
-
-                // add the new dist files
-                main_dist_files = main_dist_files.concat(new_files);
-
-                // Go to the next file
-                continue;
-
-            }
-
-                // Check to see if it is a minified file
-            let file_is_min = file.indexOf('.min') > -1,
-
-                // Extract the filetype
-                file_type = file.match(/\.([0-9a-z]{1,5})$/)[1] + (file_is_min ? '_min' : '');
-
-            // Jump out if type is not accepted
-            if(!file_type.match(accepted_file_types)) continue;
-
-            // Make the filetype into an array if it hasn't been already
-            if(!package_files[file_type]) package_files[file_type] = [];
-
-            // add the file to the object via filetype
-            package_files[file_type].push(main_dist + main_dist_files[i]);
-
-            // Add the file to the object based on vendor name
-            if(package_files.vendors[package_name] || package_files.vendors[package_name] = [])
-              package_files.vendors[package_name]
-                .push(main_dist + main_dist_files[i]);
-
-        }
-
-        // Get the file we need
-        package_files.main.push(main);
+      // Store the main file
+      this.package_files.main.push(pack.getMain());
 
     }
 
     // return our found packages
-    return package_files;
+    return this.package_files;
 
-};
+  }
+}
+
+/**
+ *  Handles the node packages
+ */
+class Package {
+
+  constructor (package_name, extractor) {
+
+    // Set the extractor reference
+    this.extractor = extractor;
+
+    // Store the package name
+    this.package_name = package_name;
+
+    // Set the package dir
+    this.package_dir = './node_modules/' + this.package_name + '/';
+
+    // Get the package json file data
+    this.file_data = fs.readFileSync(this.package_dir + 'package.json');
+
+    // get the main paramater and generate main file path
+    this.main = this.package_dir + JSON.parse(this.file_data).main;
+
+    // Get the main dir to generate all files that are needed
+    this.main_dist = this.getDistFolder();
+
+    // Get all files in the dist
+    this.main_dist_files = fs.readdirSync(this.main_dist);
+
+  }
+
+  /**
+   *  Extracts the files
+   */
+  extract () {
+
+    // Store the files according to filetype
+    for (let i = 0; i < this.main_dist_files.length; i++) {
+
+      // init a new item object
+      let item = new Item(this.main_dist + this.main_dist_files[i]);
+
+      // If is a directory, add contents to main dist files array
+      if(
+        item.isFolder(() =>
+            this.main_dist_files =
+              this.main_dist_files
+                .concat(item.getFolderContents())
+        )
+        || item.isSystem()
+        || !item.typeIsAccepted()
+      ) continue;
+
+      // add the file to the object via filetype
+      this.filesAdd(item);
+
+      // Add the file to the object based on vendor name
+      this.filesAdd(item, true);
+
+    }
+
+  }
+
+  /**
+   *  Adds the file to the correct location
+   */
+  filesAdd (item, vendor = false) {
+
+    // Jump out if item is a folder
+    if(item.isFolder()) return false;
+
+    // Sets the array
+    let pf = this.extractor.package_files,
+        array = vendor
+          ? pf.vendors[this.package_name]
+          : pf[item.type] ;
+
+    // Make the filetype into an array if it hasn't been already
+    if(!array) array = vendor
+      ? pf.vendors[this.package_name] = []
+      : pf[item.type] = [] ;
+
+    // add the file to the object via filetype
+    array.push(item.path);
+
+  }
+
+  /**
+   *  Gets the dist folder
+   */
+  getDistFolder () {
+    return fs.readdirSync(this.package_dir).indexOf('dist') < 0 ?
+      this.main.replace(/[^/]+$/,'') :
+      this.package_dir + 'dist/' ;
+  }
+
+  /**
+   *  Gets the packages main file
+   */
+  getMain () {
+    return this.main;
+  }
+
+}
+
+/**
+ *  An Item can be a file or folder
+ */
+class Item {
+
+  /**
+   *  Send therough the filename (including page)
+   */
+  constructor (path) {
+
+    // Set up the accepted file regex
+    this.accepted_file_types = /^(s?css|js|jpe?g|gif|png|svg|woff|ttf|eot)(_min)?$/;
+
+    // Set the dist folder
+    this.path = path;
+
+    // Store the file's name
+    this.name = this.getFileName();
+
+    // Set the files obj type
+    this.type = this.determineType();
+
+  }
+
+  /**
+   *  Extract file name
+   */
+  getFileName () {
+    return this.path.indexOf('/') < 0
+      ? this.path
+      : this.path.split('/').pop() ;
+  }
+
+  /**
+   *  Checks to see if file is system file
+   */
+  isSystem () {
+    return !this.name.indexOf('.');
+  }
+
+  /**
+   *  Checks to see if is a minified file
+   */
+  isMin () {
+    return this.name.indexOf('.min') > -1;
+  }
+
+  /**
+   *  Checks to see if file is an accepted filetype
+   */
+  typeIsAccepted () {
+    return !!this.type.match(this.accepted_file_types);
+  }
+
+  /**
+   *  Determins the file type for stoarge
+   */
+  determineType () {
+    if(this.isFolder()) return this.name;
+    let suffix = (this.isMin(this.name) ? '_min' : '');
+    return this.name.match(/\.([0-9a-z]{1,5})$/)[1] + suffix;
+  }
+
+  /**
+   *  Determins if is a folder
+   */
+  isFolder (cb) {
+
+    // Determin whether is folder
+    let is_folder = this.name.indexOf('.') < 0;
+
+    // run callback if exists
+    if(cb) cb();
+
+    // return wether it's a folder
+    return is_folder;
+
+  }
+
+  /**
+   *  If is a folder, get the contents
+   */
+  getFolderContents () {
+
+    // jump out if is not a folder
+    if(!this.isFolder()) return [];
+
+    // Read the directory
+    let new_files = fs.readdirSync(this.path);
+
+    // Go through new files and add them to dist array
+    for (let i = 0, l = new_files.length; i < l; i++)
+        new_files[i] = this.name + '/' + new_files[i];
+
+    // return the new files
+    return new_files;
+
+  }
+
+}
