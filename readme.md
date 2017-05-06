@@ -6,11 +6,8 @@ A helpful script that organizes npm dependencies into actionable objects and arr
 First require, then run.
 
 ```js
-
 const extractor = require('package-extractor');
-
 ...
-
 let package_files = new Extractor().extract([
     // **Optional**
     // You can define which npm packages to extract
