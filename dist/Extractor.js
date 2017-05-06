@@ -61,7 +61,8 @@ module.exports = class Extractor {
     for (let i = 0, l = this.packages.length; i < l; i++) {
 
       // Init the package object
-      let pack = new Package(this.packages[i], this);
+      let pack = new Package(this.packages[i], this),
+          style = style = pack.getStyle();
 
       // Extract the package files
       pack.extract();
@@ -70,8 +71,7 @@ module.exports = class Extractor {
       this.package_files.main.push(pack.getMain());
 
       // Store the style file (probably css)
-      if(let style = pack.getStyle())
-        this.package_files.style.push(style);
+      if(style) this.package_files.style.push(style);
 
     }
 
