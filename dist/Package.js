@@ -26,7 +26,7 @@ module.exports = class Package {
     this.main = this.package_dir + this.file_data.main;
 
     // Stores the style file
-    this.style = this.file_data.style ? this.file_data.style : '';
+    this.style = this.file_data.style ? this.package_dir + this.file_data.style : '';
 
     // Get the main dir to generate all files that are needed
     this.main_dist = this.getDistFolder();
